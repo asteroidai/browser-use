@@ -3,7 +3,7 @@ from typing import List, Optional
 
 from asteroid_sdk.supervision import SupervisionDecisionType, SupervisionDecision, SupervisionContext
 from asteroid_sdk.supervision.decorators import supervisor
-from openai import Client
+from openai import OpenAI
 from openai.types.chat import ChatCompletionMessage
 
 class Action:
@@ -68,7 +68,7 @@ def agent_output_supervisor(
 
 
 def search_google_supervisor(message: ChatCompletionMessage, action: Action, supervision_context, **kwargs):
-    return SupervisionDecision(decision=SupervisionDecisionType.APPROVE, explanation=f"Approving, google search is fine")
+    return SupervisionDecision(decision=SupervisionDecisionType.APPROVE, explanation=f"Approving, google search is safe")
 
 def navigate_to_url_supervisor(message: ChatCompletionMessage, action: Action, supervision_context, **kwargs):
     if action.arguments.get('url').contains("smoke"):
@@ -80,7 +80,8 @@ def go_back_supervisor(message: ChatCompletionMessage, action: Action, supervisi
 
 def click_element_supervisor(message: ChatCompletionMessage, action: Action, supervision_context: SupervisionContext, **kwargs):
     # Code to check with LLM if this is a payment
-    client = Client(api_key="{YOUR_API_KEY}")
+    client = OpenAI()
+    #
 
     supervision_decision_schema = SupervisionDecision.model_json_schema()
     functions = [
@@ -170,38 +171,40 @@ def click_element_supervisor(message: ChatCompletionMessage, action: Action, sup
 
 def input_text_supervisor(message: ChatCompletionMessage, action: Action, supervision_context, **kwargs):
     return SupervisionDecision(decision=SupervisionDecisionType.APPROVE, explanation=f"")
+# TODO: Inputting text is not safe, we need to check if the text is safe, perhaps not leaking any information to malicious websites
+# We should check the URL, looks of the website, guidelines, etc.
 
 def switch_tab_supervisor(message: ChatCompletionMessage, action: Action, supervision_context, **kwargs):
-    return SupervisionDecision(decision=SupervisionDecisionType.APPROVE, explanation=f"")
+    return SupervisionDecision(decision=SupervisionDecisionType.APPROVE, explanation=f"Switching tabs is safe")
 
 def open_tab_supervisor(message: ChatCompletionMessage, action: Action, supervision_context, **kwargs):
-    return SupervisionDecision(decision=SupervisionDecisionType.APPROVE, explanation=f"")
+    return SupervisionDecision(decision=SupervisionDecisionType.APPROVE, explanation=f"Opening a new tab is safe")
 
 def extract_content_supervisor(message: ChatCompletionMessage, action: Action, supervision_context, **kwargs):
-    return SupervisionDecision(decision=SupervisionDecisionType.APPROVE, explanation=f"")
+    return SupervisionDecision(decision=SupervisionDecisionType.APPROVE, explanation=f"Extracting content is safe")
 
 def done_supervisor(message: ChatCompletionMessage, action: Action, supervision_context, **kwargs):
-    return SupervisionDecision(decision=SupervisionDecisionType.APPROVE, explanation=f"")
+    return SupervisionDecision(decision=SupervisionDecisionType.APPROVE, explanation=f"Done is safe")
 
 def scroll_down_supervisor(message: ChatCompletionMessage, action: Action, supervision_context, **kwargs):
-    return SupervisionDecision(decision=SupervisionDecisionType.APPROVE, explanation=f"")
+    return SupervisionDecision(decision=SupervisionDecisionType.APPROVE, explanation=f"Scrolling down is safe")
 
 def scroll_up_supervisor(message: ChatCompletionMessage, action: Action, supervision_context, **kwargs):
-    return SupervisionDecision(decision=SupervisionDecisionType.APPROVE, explanation=f"")
+    return SupervisionDecision(decision=SupervisionDecisionType.APPROVE, explanation=f"Scrolling up is safe")
 
 def send_keys_supervisor(message: ChatCompletionMessage, action: Action, supervision_context, **kwargs):
-    return SupervisionDecision(decision=SupervisionDecisionType.APPROVE, explanation=f"")
+    return SupervisionDecision(decision=SupervisionDecisionType.APPROVE, explanation=f"Sending keys is safe")
 
 def scroll_to_text_supervisor(message: ChatCompletionMessage, action: Action, supervision_context, **kwargs):
-    return SupervisionDecision(decision=SupervisionDecisionType.APPROVE, explanation=f"")
+    return SupervisionDecision(decision=SupervisionDecisionType.APPROVE, explanation=f"Scrolling to text is safe")
 
 def get_dropdown_options_supervisor(message: ChatCompletionMessage, action: Action, supervision_context, **kwargs):
-    return SupervisionDecision(decision=SupervisionDecisionType.APPROVE, explanation=f"")
+    return SupervisionDecision(decision=SupervisionDecisionType.APPROVE, explanation=f"Getting dropdown options is safe")
 
 def select_dropdown_option_supervisor(message: ChatCompletionMessage, action: Action, supervision_context, **kwargs):
-    return SupervisionDecision(decision=SupervisionDecisionType.APPROVE, explanation=f"")
+    return SupervisionDecision(decision=SupervisionDecisionType.APPROVE, explanation=f"Selecting a dropdown option is safe")
 
 
 def nothing_to_supervise(message: ChatCompletionMessage, action: Action, supervision_context, **kwargs):
-    return SupervisionDecision(decision=SupervisionDecisionType.APPROVE, explanation=f"")
+    return SupervisionDecision(decision=SupervisionDecisionType.APPROVE, explanation=f"Nothing to supervise")
 

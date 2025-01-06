@@ -85,7 +85,7 @@ llm = ChatOpenAI(model='gpt-4o',
                      root_client=wrapped_openai_client)
 
 agent = Agent(
-	task='Go to amazon.co.uk, search for laptop, sort by best rating, and give me the price of the first result. Then add it to the cart, and try to checkout',
+	task='Go to amazon.com, search for a laptop, sort by best rating, and give me the price of the first result. Then add it to the cart, and checkout',
 	llm=llm,
 )
 
