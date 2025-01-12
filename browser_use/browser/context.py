@@ -566,12 +566,12 @@ class BrowserContext:
 
 		try:
 			await self.remove_highlights()
-			dom_service = DomService(page)
-			content = await dom_service.get_clickable_elements()
-
 			screenshot_b64 = None
 			if use_vision:
 				screenshot_b64 = await self.take_screenshot()
+			dom_service = DomService(page)
+			content = await dom_service.get_clickable_elements()
+			
 
 			self.current_state = BrowserState(
 				element_tree=content.element_tree,
@@ -635,6 +635,7 @@ class BrowserContext:
                 }
                 """
 			)
+			logger.debug('Highlights removed')
 		except Exception as e:
 			logger.debug(f'Failed to remove highlights (this is usually ok): {str(e)}')
 			# Don't raise the error since this is not critical functionality
