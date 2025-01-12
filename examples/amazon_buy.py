@@ -107,7 +107,7 @@ llm = ChatOpenAI(model='gpt-4o',
 
 # Define the agent's task
 agent = Agent(
-    task='Go to amazon and buy this: https://www.amazon.com/Rubbermaid-Compact-Contemporary-Indoor-Container/dp/B08VS1HKJ8/ref=sr_1_7?crid=QEAMVMVSYMFR&dib=eyJ2IjoiMSJ9.t1Gr-m3csttWfjtsZFx_JKaqJxChsjd0YQuUpy7ZGnO3UyE5zSTxpJDymWHJEbWItNLxvBHyHYI8dcvpXW9xY7gQvcA5Jv4UC351niJGDJjEFktae6oWoAYefSdOfU9zSwVrxMVUM7xCt0XbQ5-53rM8R72DlZAxwLvoqUjjfNIngMOKk9KQcPpFPTrT6UKuCIxnSwiYODaVTHldha4OMRTOB5JgU0E_7Oh5X1JfAsxtCMVDlJ7wrx_SQHrpM0W8IenwRdobuQSqW_QQR8wn9CndXywu3S_8bc8pqxzQsWrc68R1rLqq2HorTop_KJaYicDPMcbbkMIlhTsFzlr17HrhcRn-3URPMYDlVXrZMONldiMZpXp35RkbCzQ0K3vShcFkhPLmoZtzozcmCa9wpxkyTbOVYnCGgPqq6s6zOrLsKMVnaVdNMOwj_sN6rUXL.QJR4c2OoAlG5TDvOtGWqqTQe2MyVVqZpdC16QaqHOkE&dib_tag=se&keywords=rubbish%2Bbin&qid=1736139782&sprefix=rubbish%2Bbin%2B%2Caps%2C269&sr=8-7&th=1',
+    task='Go to amazon and buy the cheapest toilet paper with free delivery',
     llm=llm,
     controller=controller,
     browser=browser,
