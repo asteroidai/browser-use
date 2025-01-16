@@ -95,13 +95,14 @@ browser = Browser(
     config=BrowserConfig(
         headless=False,
         # Make sure to close Chrome before running this script
-        chrome_instance_path='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
     )
 )
 controller = Controller()
 
 # Initialize the LLM
-llm = ChatOpenAI(model='gpt-4o',
+llm = ChatOpenAI(
+                 async_client=wrapped_openai_client.chat.completions,
+                 root_async_client=wrapped_openai_client.chat.completions,
                  client=wrapped_openai_client.chat.completions,
                  root_client=wrapped_openai_client)
 

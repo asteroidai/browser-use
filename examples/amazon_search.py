@@ -25,7 +25,7 @@ import logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-run_id = asteroid_init(project_name="Browser Use", task_name="Amazon Search")
+run_id = asteroid_init(project_name="Browser Use", task_name="Amazon Search 2")
 
 # Initialize the OpenAI client
 openai_client = OpenAI()

@@ -275,7 +275,9 @@ class Agent:
 	async def get_next_action(self, input_messages: list[BaseMessage]) -> AgentOutput:
 		"""Get next action from LLM based on current state"""
 
+		logger.info("getting next action")
 		structured_llm = self.llm.with_structured_output(self.AgentOutput, include_raw=True)
+		
 		response: dict[str, Any] = structured_llm.invoke(input_messages)
 
 		parsed: AgentOutput = response['parsed']

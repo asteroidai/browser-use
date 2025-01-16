@@ -29,7 +29,7 @@ from asteroid_sdk.registration.initialise_project import asteroid_init, register
 from asteroid_sdk.supervision.base_supervisors import human_supervisor
 from asteroid_sdk.wrappers.openai import asteroid_openai_client
 
-from browser_use.supervisors import agent_output_supervisor
+# from browser_use.supervisors import agent_output_supervisor
 
 # Initialize logging
 logging.basicConfig(level=logging.DEBUG)
@@ -96,13 +96,14 @@ register_tool_with_supervisors(
 # Initialize the browser
 browser = Browser(
     config=BrowserConfig(
-        headless=True,
+        headless=False,
         # WSL 2 Chrome
         # chrome_instance_path='/mnt/c/Program Files/Google/Chrome/Application/chrome.exe',
         # wss_url='ws://host.docker.internal:9222'
     )
 )
 controller = Controller()
+
 
 @controller.action(
     'Write important output information to a file',
