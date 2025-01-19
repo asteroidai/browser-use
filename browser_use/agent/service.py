@@ -276,7 +276,9 @@ class Agent:
 		"""Get next action from LLM based on current state"""
 
 		structured_llm = self.llm.with_structured_output(self.AgentOutput, include_raw=True)
-		response: dict[str, Any] = await structured_llm.ainvoke(input_messages)  # type: ignore
+		#response: dict[str, Any] = await structured_llm.ainvoke(input_messages)  # type: ignore
+		response: dict[str, Any] = structured_llm.invoke(input_messages)  # type: ignore
+
 
 		parsed: AgentOutput = response['parsed']
 		if parsed is None:
