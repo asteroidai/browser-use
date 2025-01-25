@@ -193,7 +193,11 @@ class BrowserContext:
 
 		context = await self._create_context(playwright_browser)
 		self._add_new_page_listener(context)
-		page = await context.new_page()
+
+		if len(context.pages) > 0:
+			page = context.pages[0]
+		else:
+			page = await context.new_page()
 
 		# Instead of calling _update_state(), create an empty initial state
 		initial_state = BrowserState(
