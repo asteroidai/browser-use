@@ -352,7 +352,8 @@ class Agent:
 		else:
 			structured_llm = self.llm.with_structured_output(self.AgentOutput, include_raw=True, method=self.tool_calling_method)
 
-		response: dict[str, Any] = await structured_llm.ainvoke(input_messages)  # type: ignore
+		# response: dict[str, Any] = await structured_llm.ainvoke(input_messages)  # type: ignore
+		response: dict[str, Any] = structured_llm.invoke(input_messages)
 
 		parsed: AgentOutput | None = response['parsed']
 		if parsed is None:
