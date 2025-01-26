@@ -21,29 +21,26 @@ class DomService:
 		self.xpath_cache = {}
 
 	# region - Clickable elements
-	async def get_clickable_elements(
-		self,
-		highlight_elements: bool = True,
-		focus_element: int = -1,
-		viewport_expansion: int = 0,
-	) -> DOMState:
-		element_tree = await self._build_dom_tree(highlight_elements, focus_element, viewport_expansion)
+	async def get_clickable_elements(self,
+									highlight_elements: bool = True,
+									focus_element: int = -1,
+									viewport_expansion: int = 0,
+									apply_click_styling: bool = False,
+									apply_form_related: bool = False) -> DOMState:
+		element_tree = await self._build_dom_tree(highlight_elements, focus_element, viewport_expansion, apply_click_styling, apply_form_related)
 		selector_map = self._create_selector_map(element_tree)
 
 		return DOMState(element_tree=element_tree, selector_map=selector_map)
 
-	async def _build_dom_tree(
-		self,
-		highlight_elements: bool,
-		focus_element: int,
-		viewport_expansion: int,
-	) -> DOMElementNode:
+	async def _build_dom_tree(self, highlight_elements: bool, focus_element: int, viewport_expansion: int, apply_click_styling: bool, apply_form_related: bool) -> DOMElementNode:
 		js_code = resources.read_text('browser_use.dom', 'buildDomTree.js')
 
 		args = {
 			'doHighlightElements': highlight_elements,
 			'focusHighlightIndex': focus_element,
 			'viewportExpansion': viewport_expansion,
+			'applyClickStyling': apply_click_styling,
+			'applyFormRelated': apply_form_related,
 		}
 
 		eval_page = await self.page.evaluate(js_code, args)  # This is quite big, so be careful

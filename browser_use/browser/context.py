@@ -100,6 +100,8 @@ class BrowserContextConfig:
 	wait_for_network_idle_page_load_time: float = 1
 	maximum_wait_page_load_time: float = 5
 	wait_between_actions: float = 1
+	apply_click_styling: bool = False
+	apply_form_related: bool = False
 
 	disable_security: bool = False
 
@@ -647,6 +649,8 @@ class BrowserContext:
 				focus_element=focus_element,
 				viewport_expansion=self.config.viewport_expansion,
 				highlight_elements=self.config.highlight_elements,
+				apply_click_styling=self.config.apply_click_styling,
+				apply_form_related=self.config.apply_form_related,
 			)
 
 			screenshot_b64 = None

@@ -1,5 +1,7 @@
 (
-    args = { doHighlightElements: true, focusHighlightIndex: -1, viewportExpansion: 0 }
+    args = { doHighlightElements: true, focusHighlightIndex: -1, viewportExpansion: 0 },
+    applyClickStyling = false,
+    applyFormRelated = false
 ) => {
     const { doHighlightElements, focusHighlightIndex, viewportExpansion } = args;
     let highlightIndex = 0; // Reset highlight index
@@ -173,10 +175,15 @@
         // Get computed style
         const style = window.getComputedStyle(element);
 
-        // Check if element has click-like styling
-        // const hasClickStyling = style.cursor === 'pointer' ||
-        //     element.style.cursor === 'pointer' ||
-        //     style.pointerEvents !== 'none';
+        // Check if element has click-like styling if applyClickStyling is true
+        let hasClickStyling = false;
+        if (applyClickStyling) {
+            // Check if element has click-like styling
+            hasClickStyling = style.cursor === 'pointer' ||
+                element.style.cursor === 'pointer' ||
+                style.pointerEvents !== 'none';
+            // This solves problems with forms when enabled
+        }
 
         // Check for event listeners
         const hasClickHandler = element.onclick !== null ||
@@ -231,22 +238,25 @@
             element.hasAttribute('aria-selected') ||
             element.hasAttribute('aria-checked');
 
-        // Check for form-related functionality
-        const isFormRelated = element.form !== undefined ||
-            element.hasAttribute('contenteditable') ||
-            style.userSelect !== 'none';
+        // Check for form-related functionality if applyFormRelated is true
+        let isFormRelated = false;
+        if (applyFormRelated) {
+            isFormRelated = element.form !== undefined ||
+                element.hasAttribute('contenteditable') ||
+                style.userSelect !== 'none';
+            // This solves problems with forms when enabled
+        }
 
         // Check if element is draggable
         const isDraggable = element.draggable ||
             element.getAttribute('draggable') === 'true';
 
         return hasAriaProps ||
-            // hasClickStyling ||
+            hasClickStyling || // Applied only if applyClickStyling is true
             hasClickHandler ||
             hasClickListeners ||
-            // isFormRelated ||
+            isFormRelated || // This solves problems with forms when enabled
             isDraggable;
-
     }
 
     // Helper function to check if element is visible
