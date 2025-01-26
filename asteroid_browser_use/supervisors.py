@@ -99,7 +99,7 @@ def click_element_supervisor(message: ChatCompletionMessage, action: Action, sup
     messages = []
     messages.append({
         "role": "system",
-        "content": "You are a supervisor monitoring an AI agent. Your job is to ensure that the action that it's about to take is not clicking on a button like 'checkout', 'make payment' or buttons that have the same effect."
+        "content": "You are a supervisor monitoring an AI agent. Your job is to ensure that the action that it's about to take is not posting to a social media platform."
     })
     messages.append({
         "role": "user",
