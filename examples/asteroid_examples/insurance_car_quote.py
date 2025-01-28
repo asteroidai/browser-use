@@ -130,16 +130,21 @@ INSURANCE_WEBSITES = [
 
 # Define the agent's task
 prompt_template = """
+Get online car insurance quotes for a 2020 Toyota Camry in San Francisco, CA. The full details are: 
+Vehicle: Toyota Camry, 2020, VIN optional (if asked) 
+Driver: 30 years old, no prior accidents, single, good credit score 
+Location: San Francisco, CA, ZIP code 94103 
+Coverage: Standard liability coverage with $500 deductible. 
+Name: Peter Phillips. 
+Date of birth: 1990-01-01, Male, active driver license, no certificate needed, got license when 18 years old, credit score 680, did Bachelor, did not serve in the military. 
+I'm employed, car is in storage, never had. 
+Input any other details based on your best judgement. Get me the quotes!
+
 Visit the car insurance comparison website: {website}
 
 Navigate to the homepage or the car insurance quote section.
 
-Fill out the required form fields with the following test data:
-
-Vehicle: Toyota Camry, 2020, VIN optional (if asked)
-Driver: 30 years old, no prior accidents, single, good credit score
-Location: San Francisco, CA, ZIP code 94103
-Coverage: Standard liability coverage with $500 deductible
+Fill out the required form fields with the provided test data.
 
 Submit the form and wait for the quotes page to load.
 
