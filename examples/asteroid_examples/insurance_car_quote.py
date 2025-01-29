@@ -45,7 +45,7 @@ logging.basicConfig(
 
 # Set logging levels for specific packages
 logging.getLogger('asteroid_sdk').setLevel(logging.INFO)
-logging.getLogger('browser_use').setLevel(logging.INFO)
+logging.getLogger('browser_use').setLevel(logging.DEBUG)
 logging.getLogger('browserbase').setLevel(logging.INFO)
 logging.getLogger('playwright').setLevel(logging.INFO)
 
