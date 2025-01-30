@@ -123,27 +123,30 @@ Example:
         logger.error(f"Error summarizing conversation: {e}")
         return "Summary unavailable."
 
-async def finalize_task(agent: Agent, task_name: str, run_id: str):
+async def finalize_task(agent: Agent, task_name: str, run_id: str, folder_name: str):
     """
     Creates a folder for the agent execution, saves the conversation summary, 
     the final GIF (if available), the final score, etc.
     """
     # Create a timestamp
     time_str = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    folder_name = f"agent_executions/recording_{task_name.replace(' ', '_')}_{time_str}_{run_id}"
     os.makedirs(folder_name, exist_ok=True)
 
     # Create the history GIF
+    logger.info(f"Creating history GIF for {folder_name}")
     gif_path = os.path.join(folder_name, f"{task_name.replace(' ', '_')}_{time_str}_{run_id}.gif")
     agent.create_history_gif(output_path=gif_path, show_goals=False, show_task=False, show_logo=False)
-    
+    logger.info(f"History GIF created at {gif_path}")
+
     # Summarize conversation
+    logger.info(f"Summarizing conversation for {folder_name}")
     summary = await summarize_conversation(agent)
     summary_path = os.path.join(folder_name, f"summary_{time_str}_{run_id}.txt")
     with open(summary_path, "w", encoding="utf-8") as f:
         f.write(summary)
 
     # Evaluate task success
+    logger.info(f"Evaluating task success for {folder_name}")
     score = await evaluate_task_success(agent)
     score_path = os.path.join(folder_name, f"score_{time_str}_{run_id}.txt")
     with open(score_path, "w", encoding="utf-8") as f:

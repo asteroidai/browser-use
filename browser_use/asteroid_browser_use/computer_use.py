@@ -79,12 +79,17 @@ async def execute_computer_actions(actions, page):
             segments = text.split("+")
             combo_mods = segments[:-1]
             final_key = segments[-1]
-            for mod in combo_mods:
-                await page.keyboard.down(mod.strip())
-            await page.keyboard.press(final_key.strip())
-            for mod in reversed(combo_mods):
-                await page.keyboard.up(mod.strip())
-            print(f"Pressed key combination: {text}")
+            try:
+                for mod in combo_mods:
+                    await page.keyboard.down(mod.strip())
+                await page.keyboard.press(final_key.strip())
+                for mod in reversed(combo_mods):
+                    await page.keyboard.up(mod.strip())
+                print(f"Pressed key combination: {text}")
+            except Exception as e:
+                print(f"Error pressing key combination: {text}")
+                print(f"Error: {e}")
+            
 
         elif action_name == "screenshot":
             path = action_dict.get("path", f"screenshot_{uuid.uuid4()}.png")
@@ -100,15 +105,22 @@ async def execute_computer_actions(actions, page):
     page._anthropic_state["mouse_x"] = mouse_x
     page._anthropic_state["mouse_y"] = mouse_y
 
-async def computer_use(browser: BrowserContext):
+async def anthropic_computer_use(browser: BrowserContext):
     page = await browser.get_current_page()
     screenshot_data = await page.screenshot()
     message_manager = getattr(browser.browser, 'message_manager', None)
+    llm = getattr(browser.browser, 'llm', None)
+    if llm is None and getattr(llm, '_client', None) is None:
+        return ActionResult(
+            error='No llm found on this browser context!',
+        )
+        client = llm._client
+    client = anthropic.Anthropic() 
     
     if not message_manager:
         return ActionResult(
             error='No message_manager found on this browser context!',
-        )
+        ) 
 
     # 2) Now you can get the entire conversation:
     input_messages = message_manager.get_messages()
@@ -117,9 +129,9 @@ async def computer_use(browser: BrowserContext):
     screenshot_base64 = base64.b64encode(screenshot_data).decode('utf-8')
     
     ANTHROPIC_COMPUTER_USE_SYSTEM_PROMPT = """
-You are extremely capable browser agent. You will get a history of a browser session and a screenshot of the current page. You will then need to decide what to do next to fulfill the user goal!
+You are extremely capable browser agent. You will get a history of a browser session and a screenshot of the current page. You will then need to decide what to do next to fulfill the user goal! Do not take another screenshots!
 
-Try to perform actions together. For example, if you want to move and click on an element, give me all the actions together - move mouse to element, click on element.
+Perform actions together. For example, if you want to move and click on an element, give me all the actions together - move mouse to element, click on element.
 """
 
     messages = [
@@ -142,11 +154,11 @@ Try to perform actions together. For example, if you want to move and click on a
         },
         {
             'role': 'user',
-            'content': "This is the current screenshot of the page. Don't take another screenshot, give me actions to perform on the page to move forward!"
+            'content': "This is the current screenshot of the page. Don't take another screenshot!! Give me the actions to perform on the page to move forward! Perform actions together! For example, move mouse to element, click on element!"
         },
     ]
 
-    client = anthropic.Anthropic()    
+    
 
     response = client.beta.messages.create(
         model="claude-3-5-sonnet-20241022",
@@ -165,6 +177,7 @@ Try to perform actions together. For example, if you want to move and click on a
         betas=["computer-use-2024-10-22"],
     )
 
+
     actions = []
     for content_item in response.content:
         if content_item.type == 'text':
@@ -174,6 +187,8 @@ Try to perform actions together. For example, if you want to move and click on a
             action = content_item.input
             if tool_name == 'computer':
                 actions.append(action)
+                
+    logger.info(f'Executing computer use actions: {actions}')
     await execute_computer_actions(actions, page)
     return ActionResult(extracted_content=f'Executed actions: {actions}')
 
@@ -182,5 +197,5 @@ def register_computer_use_action(controller):
         'Perform computer use actions. Call this when you want to click outside of the highlighted elements! It will enable you to click anywhere on the page, for example dropdowns, buttons, etc.',
         requires_browser=True,
     )
-    async def perform_computer_use(browser: BrowserContext):
-        return await computer_use(browser)
+    async def computer_use(browser: BrowserContext):
+        return await anthropic_computer_use(browser)
