@@ -9,6 +9,7 @@ import os
 import sys
 import asyncio
 import logging
+import datetime
 
 # Add the parent directory to sys.path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -23,9 +24,9 @@ from asteroid_sdk.supervision.base_supervisors import human_supervisor, auto_app
 from asteroid_sdk.wrappers.openai import asteroid_openai_client
 
 # Import evaluation and computer_use modules
-from asteroid_browser_use.evaluation import finalize_task
-from asteroid_browser_use.computer_use import register_computer_use_action
-from asteroid_browser_use.actions import register_asteroid_actions
+from browser_use.asteroid_browser_use.evaluation import finalize_task
+from browser_use.asteroid_browser_use.computer_use import register_computer_use_action
+from browser_use.asteroid_browser_use.actions import register_asteroid_actions
 
 # Initialize logging
 logging.basicConfig(level=logging.DEBUG)
@@ -33,7 +34,8 @@ logger = logging.getLogger(__name__)
 
 
 
-TASK_NAME = "planning_and_zoning"
+TASK_NAME = "parcel_zoning_info"
+# TASK_NAME = "parcel_zoning_layers"
 
 # Initialize the project
 run_id = asteroid_init(project_name="Data Centers", task_name=TASK_NAME)
@@ -92,6 +94,11 @@ register_tool_with_supervisors(
     run_id=run_id,
 )
 
+time_str = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+folder_name = f"agent_executions/{TASK_NAME}/recording_{TASK_NAME.replace(' ', '_')}_{time_str}_{run_id}"
+os.makedirs(folder_name, exist_ok=True)
+
+
 # Initialize the browser
 browser = Browser(
     config=BrowserConfig(
@@ -100,7 +107,7 @@ browser = Browser(
             apply_click_styling=True,
             apply_form_related=True,
             browser_window_size={"width": 1024, "height": 768}, # These are values for Anthropic computer use
-            save_recording_path='agent_executions/'
+            save_recording_path=folder_name
         ),
     )
 )
@@ -110,7 +117,7 @@ controller = Controller()
 register_computer_use_action(controller)
 
 # Register Asteroid actions
-register_asteroid_actions(controller, run_id)
+register_asteroid_actions(controller, str(run_id), folder_name)
 
 # Initialize the LLM
 llm = ChatOpenAI(
@@ -119,21 +126,28 @@ llm = ChatOpenAI(
     root_client=wrapped_openai_client
 )
 
+
+# You can use the get_text function to get text directly from the DOM, which is usually more efficient that using your vision. 
 # Define the agent's task
-prompt = """
+prompt_parcel_zoning_info = """
 Planning & Zoning Task
 
-You are a planning and zoning agent. You are tasked with finding information about a parcel of land from a local government website. With the address and coordinates given, you need to find the parcel and then find the zoning information for that parcel. You should return all of the zoning information for the parcel, and take a screenshot of the full parcel. You can use the get_text function to get text directly from the DOM, which is usually more efficient that using your vision. 
+You are a planning and zoning agent. You are tasked with finding information about a parcel of land from a local government website. With the address and coordinates given, you need to find the parcel and then find the zoning information for that parcel. You should return all of the zoning information for the parcel, and take a screenshot of the full parcel. 
 
 Here are some specific instructions that are relevant to this particular government website:
 - Click on Planning & Zoning application
 - Click in the search bar
 - Search using the address given 
 - Will present with two options, address points or parcels. Click on parcels.
-- Maximise the pop up window.
-- You need to open the pop up window by clicking the maximize button on the top right of the window! Use the computer use action to do this!!
-- Scrape all the data from the pop up window. Be careful to take all of the data, you might have to scroll down to get all of the data!! Scroll down to get all of the data.
-- Take a screenshot of the full parcel. 
+- Maximize the pop-up window by clicking the maximize button on the top right corner. Use the computer use action to achieve this.
+- After maximizing the pop-up window, extract all the data from it. This may require multiple steps:
+    - Take a screenshot of the pop-up window.
+    - Use the write_to_file function append the text parcel data from the pop-up window to a file.
+    - Scroll down to capture all the data. Take additional screenshots and save the new data to the file until all data is captured.
+- Close the pop-up window by clicking the close button on the top right corner. Use the computer use action to achieve this.
+- Zoom out to view the entire parcel by sending the keys `Control` + `-`.
+- Take a screenshot of the full parcel.
+
 
 Here is some advice that you have acquired over time when working with this website:
 - When taking a screenshot, make sure that you don't have any modals open that cover the parcel of land. You must be able to see the full parcel. Before taking a screenshot, ask yourself, are you sure that you have closed all modals?
@@ -148,8 +162,44 @@ Address: 6402 Marigold St
 Coordinates:  32.467141, -99.810052
 """
 
+
+prompt_parcel_zoning_layers = """
+Parcel Zoning Layers
+
+You are a planning and zoning agent. You are tasked with finding information about a parcel of land from a local government website. With the address and coordinates given, you need to find the parcel and then find the zoning information for that parcel. You should return all of the zoning information for the parcel, and take a screenshot of the full parcel. You can use the get_text function to get text directly from the DOM, which is usually more efficient that using your vision. 
+
+Here are some specific instructions that are relevant to this particular government website:
+- Click on Planning & Zoning application
+- Click in the search bar
+- Search using the address given 
+- Will present with two options, address points or parcels. Click on parcels.
+- Now click on the Layer List on the left side bar, it's the second icon from the top.
+- Zoom out so the full parcel boundaries are visible. You can do this by sending the keys `Control` + `-` to zoom out.
+- Click on the layer options Icon. It's next to the search button on the top of the layers menu.
+- Turn all layers off
+- Now iterate through all of the layers! For each layer, do the following:
+    - Press the drop down to expand the legend
+    - Turn on the layer
+    - Take a screenshot of both the map and the legend. Make sure that the layer has loaded before taking the screenshot.
+    - Click on the parcel (or centre of the screen)
+    - For some layers it may show a pop up window, read the data from this and write it to a file using the write_to_file function.
+
+Here is some advice that you have acquired over time when working with this website:
+- When taking a screenshot, make sure that you don't have any modals open that cover the parcel of land. You must be able to see the full parcel. Before taking a screenshot, ask yourself, are you sure that you have closed all modals?
+
+If you are struggling with a task, or seem to be stuck in a loop (defined as repeating the same action to no avail 3 times), you can request human supervisor to help you with your task.
+Your final output should be written to file using the write_to_file function.
+
+Information about the task:
+
+Base Webpage: https://abilene.maps.arcgis.com/apps/webappviewer/index.html?id=fc76608ae8394a5cb2b4d8a245262275 
+Address: 6402 Marigold St 
+Coordinates:  32.467141, -99.810052
+"""
+
+
 agent = Agent(
-    task=prompt,
+    task=prompt_parcel_zoning_info,
     llm=llm,
     controller=controller,
     browser=browser,
@@ -157,10 +207,11 @@ agent = Agent(
 
 # Important, this is needed so the computer use action can access the message manager
 browser.message_manager = agent.message_manager
+browser.llm = llm
 
 async def main():
     await agent.run(max_steps=30)
-    await finalize_task(agent, TASK_NAME, str(run_id))
+    await finalize_task(agent, TASK_NAME, str(run_id), folder_name)
     await browser.close()
 
 if __name__ == '__main__':
