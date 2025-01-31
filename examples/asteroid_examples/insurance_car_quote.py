@@ -48,9 +48,6 @@ logger = logging.getLogger(__name__)
 
 TASK_NAME = "Insurance Car Quote"
 
-# Initialize the OpenAI client
-openai_client = OpenAI()
-
 # Register the tool with supervisors
 tool = {
     'name': 'AgentOutput',
@@ -102,6 +99,8 @@ Location: San Francisco, CA, ZIP code 94103
 Coverage: Standard liability coverage with $500 deductible. 
 Name: Peter Phillips. 
 Date of birth: 1990-01-01, Male, active driver license, no certificate needed, got license when 18 years old, credit score 680, did Bachelor, did not serve in the military. 
+Email: peter.phillips@gmail.com
+Phone: 415-555-1234
 I'm employed, car is in storage, never had. 
 Input any other details based on your best judgement. Get me the quotes!
 
@@ -159,6 +158,10 @@ async def run_agent_for_website(website, folder_name):
     # Register Asteroid actions
     register_asteroid_actions(controller, str(run_id), folder_name=folder_name)
     
+    
+    # Initialize the OpenAI client
+    openai_client = OpenAI()
+    
     # Initialize OpenAI client for this run
     wrapped_openai_client = asteroid_openai_client(
         openai_client, run_id
@@ -206,7 +209,7 @@ async def run_agent_for_website(website, folder_name):
         logger.error(f"Error updating run metadata: {e}")
 
     browser.message_manager = agent.message_manager
-    await agent.run(max_steps=120)
+    await agent.run(max_steps=220)
     await finalize_task(agent, task_name, str(run_id), folder_name=folder_name)
     await browser.close()
 
