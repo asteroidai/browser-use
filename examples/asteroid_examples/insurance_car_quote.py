@@ -90,18 +90,25 @@ Select dropdown option for interactive element index by the text of the option y
     }
 }
 
-
-# Define the agent's task
-prompt_template = """Get online car insurance quotes for a 2020 Toyota Camry in San Francisco, CA. The full details are: 
-Vehicle: Toyota Camry, 2020, VIN optional (if asked) 
-Driver: 30 years old, no prior accidents, single, good credit score 
-Location: San Francisco, CA, ZIP code 94103 
-Coverage: Standard liability coverage with $500 deductible. 
+CUSTOMER_DETAILS = """
 Name: Peter Phillips. 
 Date of birth: 1990-01-01, Male, active driver license, no certificate needed, got license when 18 years old, credit score 680, did Bachelor, did not serve in the military. 
 Email: peter.phillips@gmail.com
 Phone: 415-555-1234
-I'm employed, car is in storage, never had. 
+
+Vehicle: Toyota Camry, 2020, VIN optional (if asked) 
+Driver: 30 years old, no prior accidents, single, good credit score 
+Location: San Francisco, CA, ZIP code 94103 
+Coverage: Standard liability coverage with $500 deductible.
+Employed, car is in storage, never had an accident. 
+"""
+# These are hardcoded for now
+
+# Define the agent's task
+prompt_template = """Get online car insurance quotes. The full details are: 
+
+{customer_details}
+
 Input any other details based on your best judgement. Get me the quotes!
 
 Visit the car insurance comparison website: {website}
@@ -118,7 +125,7 @@ Insurance provider name
 Monthly or annual premium cost
 Coverage details (if available)
 Additional fees or special offers
-Save the data in the following format to a file in this or similar format:
+Return the data in the following format in this or similar format:
 
 "website": "{website}",
 "provider": "Geico",
@@ -127,7 +134,7 @@ Save the data in the following format to a file in this or similar format:
 "coverage": "State minimum",
 "additional_info": "Roadside assistance included"
 
-Once you have this data, use the done tool to output the data.
+Once you have this data, use the done tool to output all of the final data!
 """
 
 PARALLELISED = True
@@ -181,7 +188,7 @@ async def run_agent_for_website(website, folder_name):
         root_client=wrapped_openai_client
     )
     
-    prompt = prompt_template.format(website=website)
+    prompt = prompt_template.format(website=website, customer_details=CUSTOMER_DETAILS)
     agent = Agent(
         task=prompt,
         llm=llm,
