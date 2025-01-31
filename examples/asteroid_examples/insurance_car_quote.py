@@ -9,29 +9,24 @@ import os
 import sys
 import asyncio
 import logging
-from typing import Dict, Optional
 
 # Add the parent directory to sys.path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from asteroid_sdk.api.generated.asteroid_api_client.client import Client
 from langchain_openai import ChatOpenAI
 from browser_use import Agent, Controller
-from browser_use.browser.browser import Browser, BrowserConfig, BrowserContextConfig
 from openai import OpenAI
 
 from asteroid_sdk.registration.initialise_project import asteroid_init, register_tool_with_supervisors
 from asteroid_sdk.supervision.base_supervisors import human_supervisor, auto_approve_supervisor
 from asteroid_sdk.wrappers.openai import asteroid_openai_client
-from asteroid_sdk.api.generated.asteroid_api_client.api.run.update_run_metadata import sync_detailed
-from asteroid_sdk.api.generated.asteroid_api_client.models.update_run_metadata_body import UpdateRunMetadataBody
-
 # Import evaluation and computer_use modules
 from browser_use.asteroid_browser_use.evaluation import finalize_task
 from browser_use.asteroid_browser_use.computer_use import register_computer_use_action
 from browser_use.asteroid_browser_use.actions import register_asteroid_actions
+from browser_use.asteroid_browser_use.utils import init_browser, do_update_run_metadata
 
-from browserbase import Browserbase
+BROWSERBASE_PROJECT_ID = None #"a8994b49-d8d5-4502-8f54-214d80089b6c"
 
 # Initialize logging
 logging.basicConfig(
@@ -98,42 +93,6 @@ Select dropdown option for interactive element index by the text of the option y
     }
 }
 
-def init_browser(browserbase_api_key: Optional[str] = None, browserbase_project_id: Optional[str] = None) -> tuple[Browser, Optional[str]]:
-    """Initialize browser with Browserbase if credentials are provided, otherwise use local browser.
-    Returns a tuple of (Browser, debug_url)"""
-    cdp_url = None
-    headless = True
-    debug_url = None
-
-    if browserbase_api_key and browserbase_project_id:
-        logger.info("Connecting to Browserbase session...")
-        bb = Browserbase(api_key=browserbase_api_key)
-        session = bb.sessions.create(project_id=browserbase_project_id)
-        debug_urls = bb.sessions.debug(session.id)
-
-        debug_url = debug_urls.debugger_fullscreen_url
-        logger.info(f"Browserbase Debug Connection URL: {debug_url}")
-        logger.info(f"Browserbase CDP URL: {session.connect_url}")
-
-        cdp_url = session.connect_url
-        headless = False
-    else:
-        logger.info("Using local browser (no Browserbase).")
-
-    browser = Browser(
-        config=BrowserConfig(
-            headless=headless,
-            cdp_url=cdp_url,
-            new_context_config=BrowserContextConfig(
-                apply_click_styling=True,
-                apply_form_related=True,
-                browser_window_size={"width": 1024, "height": 768},
-                save_recording_path='agent_executions/'
-            ),
-        )
-    )
-    
-    return browser, debug_url
 
 # Define the agent's task
 prompt_template = """Get online car insurance quotes for a 2020 Toyota Camry in San Francisco, CA. The full details are: 
@@ -174,51 +133,31 @@ Once you have this data, use the done tool to output the data.
 
 PARALLELISED = True
 
-async def do_update_run_metadata(run_id: str, run_metadata: Dict[str, str]) -> None:
-    """
-    Updates the run metadata with the provided run_metadata
-    """
-    print(f"Updating run metadata for run_id: {run_id}")
-    
-    asteroid_client = Client(
-        base_url="http://localhost:8080/api/v1",
-        headers={"X-Asteroid-Api-Key": os.getenv("ASTEROID_API_KEY")}
-    )
-
-    metadata = UpdateRunMetadataBody.from_dict(run_metadata)
-
-    try:
-        sync_detailed(
-            run_id, 
-            client=asteroid_client,
-            body=metadata
-        )
-    except Exception as e:
-        logger.error(f"Error updating run metadata: {e}")
-
-    logger.info(f"Run metadata has been updated with: {run_metadata}")
-
-async def run_agent_for_website(website):
+async def run_agent_for_website(website, folder_name):
     # Replace the browser initialization with the new function
-    browser, debug_url = init_browser(
-        browserbase_api_key=os.getenv("BROWSERBASE_API_KEY"),
-        browserbase_project_id=os.getenv("BROWSERBASE_PROJECT_ID")
+    
+    # Extract website name for the task
+    website_name = website.replace("https://", "").replace("www.", "").split(".")[0].capitalize()
+    task_name = f"{website_name}"
+    
+    folder_name = f"{folder_name}_{website_name}"
+    
+    browser, debug_url, session_id = init_browser(
+        browserbase_project_id=BROWSERBASE_PROJECT_ID,
+        folder_name=folder_name
     )
     controller = Controller()
 
     # Register computer_use action from the computer_use module
     register_computer_use_action(controller)
 
-    # Extract website name for the task
-    website_name = website.replace("https://", "").replace("www.", "").split(".")[0].capitalize()
-    task_name = f"{website_name}"
     
     # Create a new run for each website
     run_id = asteroid_init(project_name="Insurance Car Quote", task_name=task_name)
     print(f"Run ID: {run_id}")
 
     # Register Asteroid actions
-    register_asteroid_actions(controller, str(run_id))
+    register_asteroid_actions(controller, str(run_id), folder_name=folder_name)
     
     # Initialize OpenAI client for this run
     wrapped_openai_client = asteroid_openai_client(
@@ -268,36 +207,41 @@ async def run_agent_for_website(website):
 
     browser.message_manager = agent.message_manager
     await agent.run(max_steps=120)
-    await finalize_task(agent, task_name, str(run_id))
+    await finalize_task(agent, task_name, str(run_id), folder_name=folder_name)
     await browser.close()
 
 INSURANCE_WEBSITES = [
-    "https://insurify.com/",
-    "https://insurify.com/",
-    "https://insurify.com/",
-    "https://www.compare.com/",
-    "https://app.coverage.com/#/flow/drivers/1/currently-insured"
-    "https://www.policygenius.com/",
-    "https://www.thezebra.com/",
-    "https://www.trustedchoice.com/car-insurance/",   
-    "https://www.gabi.com",
-    "https://www.coverage.com",
-    "https://quotewizard.com",
-    "https://www.valuepenguin.com",
-    "https://www.nerdwallet.com",
+    "https://www.geico.com/auto-insurance/",
+    "https://www.progressive.com/auto/",
+    
+    # "https://insurify.com/",
+    # "https://insurify.com/",
+    # "https://insurify.com/",
+    # "https://www.compare.com/",
+    # "https://app.coverage.com/#/flow/drivers/1/currently-insured"
+    # "https://www.policygenius.com/",
+    # "https://www.thezebra.com/",
+    # "https://www.trustedchoice.com/car-insurance/",   
+    # "https://www.gabi.com",
+    # "https://www.coverage.com",
+    # "https://quotewizard.com",
+    # "https://www.valuepenguin.com",
+    # "https://www.nerdwallet.com",
 ]
+
+FOLDER_NAME = "insurance_car_quote"
 
 async def main():
     if PARALLELISED:
         tasks = []
         for website in INSURANCE_WEBSITES:
-            tasks.append(run_agent_for_website(website))
+            tasks.append(run_agent_for_website(website, folder_name=FOLDER_NAME))
             # Add 500ms delay between launching parallel tasks
             await asyncio.sleep(1)
         await asyncio.gather(*tasks)
     else:
         for website in INSURANCE_WEBSITES:
-            await run_agent_for_website(website)
+            await run_agent_for_website(website, folder_name=FOLDER_NAME)
             # Add 500ms delay between agents
             await asyncio.sleep(1)
 
