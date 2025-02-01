@@ -5,6 +5,8 @@ import logging
 from browser_use.agent.views import ActionResult
 from browser_use.browser.context import BrowserContext
 
+from asteroid_sdk.interaction.helper import pause_run, wait_for_unpaused
+
 logger = logging.getLogger(__name__)
 
 async def write_to_file(content: str, folder_name: str):
@@ -27,22 +29,19 @@ async def get_text(index: int, browser: BrowserContext):
         logger.debug(f'Error getting text content: {str(e)}')
         return ActionResult(error=f'Failed to get text from element at index {index}')
 
-async def get_human_supervisor_help(browser: BrowserContext):
+async def get_human_supervisor_help(browser: BrowserContext, run_id: str):
     """
     Get help from to perform action in the browser. Human can take over the browser, perform the action and agent will continue execution.
     """
-    # Get help via the CLI
-    print("Getting help via the CLI") # TODO: Implement escalation to Asteroid, we take over the browser, record action and then continue execution
-    user_input = input("Please give me some help")
-    # Get screenshot of the current page to see what the user was doing
-    # path = f'screenshot_{uuid.uuid4()}_{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}.png'
-    # page = await browser.get_current_page()
-    # await page.screenshot(path=path)
-    # user_input = "I'm done"
-    # Record user action
-    # await browser.record_user_action(user_input) TODO: Implement this
+    try:
+        pause_run(run_id)
+        await wait_for_unpaused(run_id)
+    except Exception as e:
+        logger.error(f'Error pausing run {run_id}: {e}')
+        return ActionResult(error=f'Failed to pause run {run_id}')
+
     
-    return ActionResult(extracted_content=user_input)
+    return ActionResult(extracted_content='Run was paused, human supervisor corrected the state, agent is now able to continue execution')
 
 async def screenshot(browser: BrowserContext, folder_name: str):
     path = f'{folder_name}/screenshot_{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}.png'
@@ -72,8 +71,8 @@ def register_asteroid_actions(controller, run_id: str, folder_name: str):
         'Get human supervisor help - get help from a human to perform an action in the browser.',
         requires_browser=True,
     )
-    async def action_get_human_supervisor_help(browser: BrowserContext):
-        return await get_human_supervisor_help(browser)
+    async def action_get_human_supervisor_help(browser: BrowserContext, run_id: str):
+        return await get_human_supervisor_help(browser, run_id)
     
     @controller.action(
         'Screenshot the current page', requires_browser=True
