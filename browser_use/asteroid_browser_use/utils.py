@@ -1,16 +1,18 @@
 from typing import Optional, Dict
 from browserbase import Browserbase
+from browserbase.types.session_create_params import BrowserSettings, BrowserSettingsFingerprint, BrowserSettingsFingerprintScreen, BrowserSettingsViewport
 from browser_use.browser.browser import Browser, BrowserConfig, BrowserContextConfig
 import logging
 import os
 from asteroid_sdk.api.generated.asteroid_api_client.api.run.update_run_metadata import sync_detailed
 from asteroid_sdk.api.generated.asteroid_api_client.models.update_run_metadata_body import UpdateRunMetadataBody
 from asteroid_sdk.api.generated.asteroid_api_client.client import Client
-
-
+from playwright.sync_api import sync_playwright
+from playwright.async_api import async_playwright
 logger = logging.getLogger(__name__)
 
-def init_browser(browserbase_project_id: Optional[str] = None, folder_name: Optional[str] = None, headless: bool = False) -> tuple[Browser, Optional[str], Optional[str]]:
+async def init_browser(browserbase_project_id: Optional[str] = None, folder_name: Optional[str] = None, headless: bool = False,
+                 height: int = 1080, width: int = 1920) -> tuple[Browser, Optional[str], Optional[str]]:
     """Initialize browser with Browserbase if credentials are provided, otherwise use local browser.
     Returns a tuple of (Browser, debug_url, session_id)"""
     cdp_url = None
@@ -19,7 +21,29 @@ def init_browser(browserbase_project_id: Optional[str] = None, folder_name: Opti
     if browserbase_project_id:
         logger.info("Connecting to Browserbase session...")
         bb = Browserbase(api_key=os.getenv("BROWSERBASE_API_KEY"))
-        session = bb.sessions.create(project_id=browserbase_project_id)
+        browser_settings = BrowserSettings(
+            block_ads=True,
+            fingerprint=BrowserSettingsFingerprint(
+                browsers=["chrome"],
+                devices=["desktop"],
+                locales=["en-US"],
+                operating_systems=["macos"],
+                screen=BrowserSettingsFingerprintScreen(
+                    max_height=height,
+                    max_width=width,
+                    min_height=height,
+                    min_width=width
+                )
+            ),
+            solve_captchas=True,
+            viewport=BrowserSettingsViewport(
+                height=height,
+                width=width
+            )
+        )
+        
+        session = bb.sessions.create(project_id=browserbase_project_id, browser_settings=browser_settings,
+                                     region="us-east-1", proxies=False)
         session_id = session.id
         debug_urls = bb.sessions.debug(session.id)
 
@@ -28,7 +52,7 @@ def init_browser(browserbase_project_id: Optional[str] = None, folder_name: Opti
         logger.info(f"Browserbase CDP URL: {session.connect_url}")
 
         cdp_url = session.connect_url
-        headless = False
+        headless = False  
     else:
         logger.info("Using local browser (no Browserbase).")
 
@@ -44,7 +68,6 @@ def init_browser(browserbase_project_id: Optional[str] = None, folder_name: Opti
             ),
         )
     )
-    
     return browser, debug_url, session_id
 
 

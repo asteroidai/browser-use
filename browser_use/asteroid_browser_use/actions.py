@@ -79,3 +79,44 @@ def register_asteroid_actions(controller, run_id: str, folder_name: str):
     )
     async def action_screenshot(browser: BrowserContext):
         return await screenshot(browser, folder_name)
+
+browser_use_tool = {
+    'name': 'AgentOutput',
+    'description': """
+Agent output is a 'Master Tool' with access to many other tools. The tools that it has access to are as follows:
+Functions:
+Search Google in the current tab:
+    {search_google: {'query': {'type': 'string'}}}
+Navigate to URL in the current tab:
+    {go_to_url: {'url': {'type': 'string'}}}
+Go back:
+    {go_back: {}}
+Click element:
+    {click_element: {'index': {'type': 'integer'}, 'xpath': {'anyOf': [{'type': 'string'}, {'type': 'null'}], 'default': None}}}
+Input text into an interactive element:
+    {input_text: {'index': {'type': 'integer'}, 'text': {'type': 'string'}, 'xpath': {'anyOf': [{'type': 'string'}, {'type': 'null'}], 'default': None}}}
+Switch tab:
+    {switch_tab: {'page_id': {'type': 'integer'}}}
+Open URL in new tab:
+    {open_tab: {'url': {'type': 'string'}}}
+Extract page content to get the text or markdown:
+    {extract_content: {'value': {'default': 'text', 'enum': ['text', 'markdown', 'html'], 'type': 'string'}}}
+Complete task:
+    {done: {'text': {'type': 'string'}}}
+Scroll down the page by pixel amount - if no amount is specified, scroll down one page:
+    {scroll_down: {'amount': {'anyOf': [{'type': 'integer'}, {'type': 'null'}], 'default': None}}}
+Scroll up the page by pixel amount - if no amount is specified, scroll up one page:
+    {scroll_up: {'amount': {'anyOf': [{'type': 'integer'}, {'type': 'null'}], 'default': None}}}
+Send strings of special keys like Backspace, Insert, PageDown, Delete, Enter, Shortcuts such as `Control+o`, `Control+Shift+T` are supported as well. This gets used in keyboard.press. Be aware of different operating systems and their shortcuts:
+    {send_keys: {'keys': {'type': 'string'}}}
+If you don't find something which you want to interact with, scroll to it:
+    {scroll_to_text: {'text': {'type': 'string'}}}
+Get all options from a native dropdown:
+    {get_dropdown_options: {'index': {'type': 'integer'}}}
+Select dropdown option for interactive element index by the text of the option you want to select:
+    {select_dropdown_option: {'index': {'type': 'integer'}, 'text': {'type': 'string'}}}
+    """,
+    'attributes': {
+        'Any': 'Any'
+    }
+}
