@@ -12,7 +12,7 @@ from playwright.async_api import async_playwright
 logger = logging.getLogger(__name__)
 
 async def init_browser(browserbase_project_id: Optional[str] = None, folder_name: Optional[str] = None, headless: bool = False,
-                 height: int = 1080, width: int = 1920) -> tuple[Browser, Optional[str], Optional[str]]:
+                 height: int = 800, width: int = 1280) -> tuple[Browser, Optional[str], Optional[str]]:
     """Initialize browser with Browserbase if credentials are provided, otherwise use local browser.
     Returns a tuple of (Browser, debug_url, session_id)"""
     cdp_url = None

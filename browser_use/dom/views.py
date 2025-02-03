@@ -78,6 +78,20 @@ class DOMElementNode(DOMBaseNode):
 
 		return HistoryTreeProcessor._hash_dom_element(self)
 
+	def get_all_text(self) -> str:
+		"""Collect all text from this node and its children."""
+		text_parts = []
+
+		def collect_text(node: DOMBaseNode) -> None:
+			if isinstance(node, DOMTextNode):
+				text_parts.append(node.text)
+			elif isinstance(node, DOMElementNode):
+				for child in node.children:
+					collect_text(child)
+
+		collect_text(self)
+		return '\n'.join(text_parts).strip()
+
 	def get_all_text_till_next_clickable_element(self, max_depth: int = -1) -> str:
 		text_parts = []
 
