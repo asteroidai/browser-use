@@ -6,8 +6,13 @@ import logging
 
 from browser_use.browser.context import BrowserContext
 from browser_use.agent.views import ActionResult
+from pydantic import BaseModel, Field
+
 
 logger = logging.getLogger(__name__)
+
+class ComputerUseAction(BaseModel):
+	task: str = Field(..., description="The task to perform on the website. Could be sequence of actions.")
 
 async def execute_computer_actions(actions, page):
     if isinstance(actions, dict):
@@ -125,7 +130,7 @@ def preprocess_input_messages(messages):
         processed.append(cleaned)
     return "\n".join(processed)
 
-async def anthropic_computer_use(browser: BrowserContext, width: int, height: int):
+async def anthropic_computer_use(browser: BrowserContext, task: str, width: int, height: int):
     page = await browser.get_current_page()
     screenshot_data = await page.screenshot()
     message_manager = getattr(browser.browser, 'message_manager', None)
@@ -144,23 +149,19 @@ async def anthropic_computer_use(browser: BrowserContext, width: int, height: in
     input_messages = message_manager.get_messages()
     preprocessed_history = preprocess_input_messages(input_messages)
     
-    # Improved system prompt with very clear instructions.
+
     ANTHROPIC_COMPUTER_USE_SYSTEM_PROMPT = """
-You are an advanced browser automation agent with the following responsibilities:
-1. You receive a preprocessed conversation history that summarizes the browser session – including system messages,
-   human inputs, tool outputs, and error notifications.
-2. You also receive a current screenshot of the webpage as a base64-encoded PNG image.
-3. Analyze both the preprocessed history and the screenshot to determine the current state of the webpage.
-4. Based solely on these inputs, decide the next sequence of cohesive browser actions to achieve the user's goal.
-5. NEVER instruct the system to take a new screenshot – use the provided image without any further screenshot requests.
-6. Your response must be in valid JSON format with a clear plan that includes:
-   - "current_state": a dictionary containing:
-         • "evaluation_previous_goal": your assessment of previous actions
-         • "memory": any important context to be remembered
-         • "next_goal": the next objective based on current context
-   - "action": a list of browser actions required to complete the next step.
-7. When actions are related (for example, moving the mouse and then clicking), combine them into consecutive steps.
-Ensure clarity and conciseness in your decision-making.
+You are an advanced browser automation agent with parallel tool use capabilities. You receive:
+1. A preprocessed conversation history summarizing the browser session (including system messages, user inputs, tool outputs, and error notifications).
+2. A current screenshot of the webpage.
+
+Your task is to analyze both the conversation history and the screenshot, and then determine a set of browser actions to achieve the user's goal.
+
+Please follow these instructions precisely:
+1. Instead of suggesting a single sequential action, return multiple tool calls that are intended to be executed in sequence.
+2. Do NOT request or take a new screenshot – use only the provided screenshot.
+3. Provide the comprehensive list of actions required for the task specified in the user's goal.
+
 """
     
     messages = [
@@ -174,6 +175,7 @@ Ensure clarity and conciseness in your decision-making.
                 "Below is the most recent screenshot of the current page. Do NOT request or take another screenshot. "
                 "Analyze this image along with the above conversation history, and determine the next set "
                 "of coordinated browser actions (for example, moving the mouse to an element and clicking it)."
+                "Here is the task you should perform: {task} Give me all action tool calls to call!"
             )
         },
         {
@@ -206,6 +208,7 @@ Ensure clarity and conciseness in your decision-making.
         messages=messages,
         system=ANTHROPIC_COMPUTER_USE_SYSTEM_PROMPT,
         betas=["computer-use-2024-10-22"],
+        tool_choice={'type': 'tool', 'name': 'computer'},
     )
     
     actions = []
@@ -219,15 +222,16 @@ Ensure clarity and conciseness in your decision-making.
             action = content_item.input
             if tool_name == 'computer':
                 actions.append(action)
-                
+    logger.info(f'Computer use response: {text_content}')
     logger.info(f'Executing computer use actions: {actions}')
     await execute_computer_actions(actions, page)
     return ActionResult(extracted_content=f'Text content: {text_content}\nExecuted actions: {actions}', include_in_memory=True)
 
 def register_computer_use_action(controller, width: int, height: int):
     @controller.action(
-        'Perform computer use actions. Call this when you want to click outside of the highlighted elements! It will enable you to click anywhere on the page, for example dropdowns, buttons, etc.',
+        'Perform computer use actions to simulate human interaction with a desktop GUI. This tool enables actions such as moving the mouse, clicking (left, right, middle, or double-click), dragging with the left mouse button, pressing individual keys or key combinations, typing text, retrieving the current cursor position. Can perform multiple actions at once.',
+        param_model=ComputerUseAction,
         requires_browser=True,
     )
-    async def computer_use(browser: BrowserContext):
-        return await anthropic_computer_use(browser, width, height)
+    async def computer_use(params: ComputerUseAction, browser: BrowserContext):
+        return await anthropic_computer_use(browser, params.task, width, height)

@@ -63,7 +63,7 @@ async def init_browser(browserbase_project_id: Optional[str] = None, folder_name
             new_context_config=BrowserContextConfig(
                 apply_click_styling=True,
                 apply_form_related=True,
-                browser_window_size={"width": 1024, "height": 768},
+                browser_window_size={"width": width, "height": height},
                 save_recording_path=folder_name
             ),
         )
