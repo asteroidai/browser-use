@@ -29,7 +29,7 @@ async def get_text(index: int, browser: BrowserContext):
         logger.debug(f'Error getting text content: {str(e)}')
         return ActionResult(error=f'Failed to get text from element at index {index}')
 
-async def get_human_supervisor_help(browser: BrowserContext, run_id: str):
+async def perform_get_human_supervisor_help(browser: BrowserContext, run_id: str):
     """
     Get help from to perform action in the browser. Human can take over the browser, perform the action and agent will continue execution.
     """
@@ -44,7 +44,7 @@ async def get_human_supervisor_help(browser: BrowserContext, run_id: str):
     return ActionResult(extracted_content='Run was paused, human supervisor corrected the state, agent is now able to continue execution')
 
 
-async def solve_captcha(browser: BrowserContext, run_id: str):
+async def perform_solve_captcha(browser: BrowserContext, run_id: str):
     """
     Solve a captcha.
     """
@@ -52,7 +52,7 @@ async def solve_captcha(browser: BrowserContext, run_id: str):
     # TODO: Implement better captcha solving
     await get_human_supervisor_help(browser, run_id)
 
-async def screenshot(browser: BrowserContext, folder_name: str):
+async def perform_screenshot(browser: BrowserContext, folder_name: str):
     path = f'{folder_name}/screenshot_{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}.png'
     page = await browser.get_current_page()
     await page.screenshot(path=path)
@@ -77,23 +77,23 @@ def register_asteroid_actions(controller, run_id: str, folder_name: str):
     #     return await get_text(index, browser)
     
     @controller.action(
-        'Get human supervisor help - get help from a human to perform an action in the browser.',
+        'Get help from a human to perform an action in the browser.',
         requires_browser=True,
     )
-    async def action_get_human_supervisor_help(browser: BrowserContext):
-        return await get_human_supervisor_help(browser, run_id)
+    async def get_human_supervisor_help(browser: BrowserContext):
+        return await perform_get_human_supervisor_help(browser, run_id)
     
     @controller.action(
         'Screenshot the current page', requires_browser=True
     )
-    async def action_screenshot(browser: BrowserContext):
-        return await screenshot(browser, folder_name)
+    async def screenshot(browser: BrowserContext):
+        return await perform_screenshot(browser, folder_name)
 
     @controller.action(
         'Solve a captcha', requires_browser=True
     )
-    async def action_solve_captcha(browser: BrowserContext):
-        return await solve_captcha(browser, run_id)
+    async def solve_captcha(browser: BrowserContext):
+        return await perform_solve_captcha(browser, run_id)
 
 
 browser_use_tool = {
