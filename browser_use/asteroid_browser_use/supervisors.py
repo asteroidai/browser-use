@@ -18,8 +18,11 @@ def agent_output_supervisor(
         **kwargs
 ):
     actions: List[Action] = []
-    if message.tool_calls[0].function.name == 'AgentOutput':
+    if message.tool_calls and message.tool_calls[0].function.name == 'AgentOutput':
         actions_dict = json.loads(message.tool_calls[0].function.arguments).get('action')
+
+        print(f"message args: {message.tool_calls[0].function.arguments}")
+        print(f"actions_dict: {actions_dict}")
 
         for action in actions_dict:
             # Action will always be a dict with only a key + value
@@ -66,22 +69,20 @@ def agent_output_supervisor(
         explanation=passing_reasons
     )
 
-
 def search_google_supervisor(message: ChatCompletionMessage, action: Action, supervision_context, **kwargs):
     return SupervisionDecision(decision=SupervisionDecisionType.APPROVE, explanation=f"Approving, google search is safe")
 
 def navigate_to_url_supervisor(message: ChatCompletionMessage, action: Action, supervision_context, **kwargs):
     if action.arguments.get('url').contains("smoke"):
         return SupervisionDecision(decision=SupervisionDecisionType.ESCALATE, explanation=f"Escalate as site may be unsafe")
-
     return SupervisionDecision(decision=SupervisionDecisionType.APPROVE, explanation=f"")
+
 def go_back_supervisor(message: ChatCompletionMessage, action: Action, supervision_context, **kwargs):
     return SupervisionDecision(decision=SupervisionDecisionType.APPROVE, explanation=f"")
 
 def click_element_supervisor(message: ChatCompletionMessage, action: Action, supervision_context: SupervisionContext, **kwargs):
     # Code to check with LLM if this is a payment
     client = OpenAI()
-    #
 
     supervision_decision_schema = SupervisionDecision.model_json_schema()
     functions = [

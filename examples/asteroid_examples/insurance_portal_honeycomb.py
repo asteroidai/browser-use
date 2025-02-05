@@ -13,6 +13,7 @@ from pathlib import Path
 import uuid
 
 from browser_use.agent.views import ActionResult
+from browser_use.asteroid_browser_use.actions import register_asteroid_actions
 from browser_use.browser.context import BrowserContext
 
 # Add the parent directory to sys.path
@@ -104,39 +105,7 @@ browser = Browser(
 )
 controller = Controller()
 
-@controller.action(
-    'Write important output information to a file',
-    requires_browser=False,
-)
-async def write_to_file(content: str):
-    with open(f'output_{run_id}.txt', 'w') as f:
-        f.write(content)
-    return ActionResult(extracted_content='Output written to file')
-
-@controller.action(
-    'Get human supervisor help',
-    requires_browser=False,
-)
-async def get_human_supervisor_help(browser: BrowserContext):
-    # Get help via the CLI
-    print("Escalating to a human supervisor for approval.")
-    user_input = input("Please review the form before submission and provide instructions:")
-    # Record user action
-    await browser.record_user_action(user_input)
-    return ActionResult(extracted_content=user_input)
-
-@controller.action(
-    'Screenshot the current page', requires_browser=True
-)
-async def screenshot(browser: BrowserContext):
-    path = f'screenshot_{uuid.uuid4()}.png'
-    page = await browser.get_current_page()
-    # await browser.remove_highlights()
-    await page.screenshot(path=path)
-
-    msg = '📸 Screenshot taken'
-    logger.info(msg)
-    return ActionResult(extracted_content=msg, include_in_memory=True)
+register_asteroid_actions(controller, str(run_id), folder_name="insurance_portal_honeycomb")
 
 # Initialize the LLM
 llm = ChatOpenAI(
