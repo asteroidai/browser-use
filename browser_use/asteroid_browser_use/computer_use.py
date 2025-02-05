@@ -81,9 +81,16 @@ async def execute_computer_actions(actions, page):
             if not isinstance(text, str):
                 print("Error: 'key' action must include 'text' string. Skipping.")
                 continue
+
             segments = text.split("+")
             combo_mods = segments[:-1]
             final_key = segments[-1]
+
+            # If the final key is "Return", we need to press Enter
+            if final_key == "Return":
+                print("LLM returned 'Return', replacing with 'Enter'")
+                final_key = "Enter"
+
             try:
                 for mod in combo_mods:
                     await page.keyboard.down(mod.strip())
