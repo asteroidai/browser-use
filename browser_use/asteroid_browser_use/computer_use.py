@@ -10,7 +10,8 @@ from pydantic import BaseModel, Field
 
 
 logger = logging.getLogger(__name__)
-
+# Set the logging level to lowest
+logger.setLevel(logging.DEBUG)
 class ComputerUseAction(BaseModel):
 	task: str = Field(..., description="The task to perform on the website. Could be sequence of actions.")
 
