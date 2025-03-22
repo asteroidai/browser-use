@@ -8,34 +8,32 @@ import os
 import sys
 import asyncio
 import logging
+import datetime
+import time
 
-from pathlib import Path
-import uuid
-
-from browser_use.agent.views import ActionResult
-from browser_use.asteroid_browser_use.actions import register_asteroid_actions
-from browser_use.browser.context import BrowserContext
-
-# Add the parent directory to sys.path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from langchain_openai import ChatOpenAI
-import datetime
 from browser_use import Agent, Controller
-from browser_use.browser.browser import Browser, BrowserConfig
 from openai import OpenAI
-import time
 
 from asteroid_sdk.registration.initialise_project import asteroid_init, register_tool_with_supervisors
 from asteroid_sdk.supervision.base_supervisors import human_supervisor, llm_supervisor, auto_approve_supervisor
 from asteroid_sdk.wrappers.openai import asteroid_openai_client
+# Add the parent directory to sys.path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from browser_use.asteroid_browser_use.utils import init_browser, do_update_run_metadata
+from browser_use.asteroid_browser_use.actions import browser_use_tool
+from browser_use.asteroid_browser_use.computer_use import register_computer_use_action
+from browser_use.asteroid_browser_use.evaluation import finalize_task
 
 # Initialize logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 # Initialize the project
-run_id = asteroid_init(project_name="Insurance Portal", task_name="Form Filling")
+TASK_NAME = "Form Filling"
+run_id = asteroid_init(project_name="Insurance Portal", task_name=TASK_NAME)
 
 # Initialize the OpenAI client
 openai_client = OpenAI()
@@ -43,70 +41,17 @@ wrapped_openai_client = asteroid_openai_client(
     openai_client, run_id
 )
 
-# Register the tool with supervisors
-tool = {
-    'name': 'AgentOutput',
-    'description': """
-Agent output is a 'Master Tool' with access to many other tools. The tools that it has access to are as follows:
-Functions:
-Search Google in the current tab:
-    {search_google: {'query': {'type': 'string'}}}
-Navigate to URL in the current tab:
-    {go_to_url: {'url': {'type': 'string'}}}
-Go back:
-    {go_back: {}}
-Click element:
-    {click_element: {'index': {'type': 'integer'}, 'xpath': {'anyOf': [{'type': 'string'}, {'type': 'null'}], 'default': None}}}
-Input text into an interactive element:
-    {input_text: {'index': {'type': 'integer'}, 'text': {'type': 'string'}, 'xpath': {'anyOf': [{'type': 'string'}, {'type': 'null'}], 'default': None}}}
-Switch tab:
-    {switch_tab: {'page_id': {'type': 'integer'}}}
-Open URL in new tab:
-    {open_tab: {'url': {'type': 'string'}}}
-Extract page content to get the text or markdown:
-    {extract_content: {'value': {'default': 'text', 'enum': ['text', 'markdown', 'html'], 'type': 'string'}}}
-Complete task:
-    {done: {'text': {'type': 'string'}}}
-Scroll down the page by pixel amount - if no amount is specified, scroll down one page:
-    {scroll_down: {'amount': {'anyOf': [{'type': 'integer'}, {'type': 'null'}], 'default': None}}}
-Scroll up the page by pixel amount - if no amount is specified, scroll up one page:
-    {scroll_up: {'amount': {'anyOf': [{'type': 'integer'}, {'type': 'null'}], 'default': None}}}
-Send strings of special keys like Backspace, Insert, PageDown, Delete, Enter, Shortcuts such as `Control+o`, `Control+Shift+T` are supported as well. This gets used in keyboard.press. Be aware of different operating systems and their shortcuts:
-    {send_keys: {'keys': {'type': 'string'}}}
-If you don't find something which you want to interact with, scroll to it:
-    {scroll_to_text: {'text': {'type': 'string'}}}
-Get all options from a native dropdown:
-    {get_dropdown_options: {'index': {'type': 'integer'}}}
-Select dropdown option for interactive element index by the text of the option you want to select:
-    {select_dropdown_option: {'index': {'type': 'integer'}, 'text': {'type': 'string'}}}
-    """,
-    'attributes': {
-        'Any': 'Any'
-    }
-}
-
 register_tool_with_supervisors(
-    tool=tool,
+    tool=browser_use_tool,
     supervision_functions=[
         [
-            # auto_approve_supervisor,
-            llm_supervisor(instructions="Escalate to a human supervisor when the agent gets to the final form on the page where it says: Contact Details & Desired Insurance Coverage Limits. Don't focus on anything else! Approve all other actions."),
-            human_supervisor()
+            auto_approve_supervisor
+            # llm_supervisor(instructions="Escalate to a human supervisor when the agent gets to the final form on the page where it says: Contact Details & Desired Insurance Coverage Limits. Don't focus on anything else! Approve all other actions."),
+            # human_supervisor()
         ]
     ],
     run_id=run_id,
 )
-
-# Initialize the browser
-browser = Browser(
-    config=BrowserConfig(
-        headless=False,
-    )
-)
-controller = Controller()
-
-register_asteroid_actions(controller, str(run_id), folder_name="insurance_portal_honeycomb")
-
 # Initialize the LLM
 llm = ChatOpenAI(
     model='gpt-4o',
@@ -114,9 +59,9 @@ llm = ChatOpenAI(
     root_client=wrapped_openai_client
 )
 
-url = "https://honeycombinsurance.com/"
+# url = "https://honeycombinsurance.com/"
 
-# url = "https://app.honeycombinsurance.com/quote/start?d=eyJhZGRyZXNzIjp7ImFkZHJlc3NDb21wb25lbnQiOnsic3RyZWV0TnVtYmVyIjoiMjIzOCIsInN0cmVldE5hbWUiOiJHZWFyeSBCb3VsZXZhcmQiLCJjaXR5IjoiU2FuIEZyYW5jaXNjbyIsImNvdW50eSI6IlNhbiBGcmFuY2lzY28gQ291bnR5Iiwic3RhdGVBYnIiOiJDQSIsInN0YXRlIjoiQ2FsaWZvcm5pYSIsInppcGNvZGUiOiI5NDExNSIsInppcCI6Ijk0MTE1In0sImZvcm1hdHRlZEFkZHJlc3MiOiIyMjM4IEdlYXJ5IEJsdmQsIFNhbiBGcmFuY2lzY28sIENBIDk0MTE1LCBVU0EiLCJsYXRpdHVkZSI6MzcuNzgzNTU5NCwibG9uZ2l0dWRlIjotMTIyLjQ0MDY3MzZ9LCJ1dG0iOnt9fQ==)"
+url = "https://app.honeycombinsurance.com/quote/start?d=eyJhZGRyZXNzIjp7ImFkZHJlc3NDb21wb25lbnQiOnsic3RyZWV0TnVtYmVyIjoiMjIzOCIsInN0cmVldE5hbWUiOiJHZWFyeSBCb3VsZXZhcmQiLCJjaXR5IjoiU2FuIEZyYW5jaXNjbyIsImNvdW50eSI6IlNhbiBGcmFuY2lzY28gQ291bnR5Iiwic3RhdGVBYnIiOiJDQSIsInN0YXRlIjoiQ2FsaWZvcm5pYSIsInppcGNvZGUiOiI5NDExNSIsInppcCI6Ijk0MTE1In0sImZvcm1hdHRlZEFkZHJlc3MiOiIyMjM4IEdlYXJ5IEJsdmQsIFNhbiBGcmFuY2lzY28sIENBIDk0MTE1LCBVU0EiLCJsYXRpdHVkZSI6MzcuNzgzNTU5NCwibG9uZ2l0dWRlIjotMTIyLjQ0MDY3MzZ9LCJ1dG0iOnt9fQ==)"
 
 # Define the agent's task
 prompt = f"""
@@ -145,12 +90,12 @@ Effective Date: 02.02.
 2. **Facilities & Usage:**
    - Facilities: Select "Swimming Pool" and "Playground".
 
-3. **Building Systems:**
+3. **Building Systems:** - You should use computer_use to fill in the building systems.
    - Roof: Select "Past 5 years".
    - Plumbing: Select "5-15 years ago".
    - Electrical: Select "Over 30 years ago".
    - HVAC: Select "Past 5 years".
-   - Water Heater: Select "5-15 years ago".
+   - Water Heater: Select "5-15 years ago". - You needto scroll to see this one and then click next.
 
 4. **Property Condition & Maintenance:**
    - Roof Type: Select "Flat".
@@ -175,13 +120,13 @@ Effective Date: 02.02.
 
 1. Navigate to [Honeycomb Insurance Website] {url}
 
-
 3. Select the correct property type (e.g., Condo Association).
 
 4. Fill in the property details as prompted on each page, then click "Next" until you reach the final page that you also fill in.
 
-5. When you get to the final page saying: "Contact Details & Desired Insurance Coverage Limits", fill out the page, effective date is: 02.02. - Make sure to use this format, only input the date, the year is already filled in!!! Then finish execution.
+5. When you get to the final page saying: "Contact Details & Desired Insurance Coverage Limits", fill out the page, effective date is: 02.02. - Make sure to use this format, only input the date, the year is already filled in! Fill out all additional fields and get quotes! Do not finish until you have quotes!
 
+6. At the last page, answer everything No, then select that you have active policy and submit.
 
 **Additional Notes**:
 
@@ -192,17 +137,32 @@ Effective Date: 02.02.
 Your final output should be concise and include any relevant information collected during the process.
 """
 
-agent = Agent(
-    task=prompt,
-    llm=llm,
-    controller=controller,
-    browser=browser,
-)
 
 async def main():
+    browser, debug_url, session_id = init_browser()
+    
+    controller = Controller()
+
+    # Register computer_use action from the computer_use module
+    register_computer_use_action(controller)
+    
+    
+    agent = Agent(
+        task=prompt,
+        llm=llm,
+        controller=controller,
+        browser=browser,
+)
+
+    # Important, this is needed so the computer use action can access the message manager
+    browser.message_manager = agent.message_manager
+    browser.llm = llm
+    
+    folder_name = "agent_executions/insurance_portal_honeycomb"
+    
     await agent.run(max_steps=60)
+    await finalize_task(agent, TASK_NAME, str(run_id), folder_name, evaluate=False, output_format="gif")
     await browser.close()
-    agent.create_history_gif(output_path=f'agent_history_{time.time()}.gif', show_goals=False, show_task=False, show_logo=False)
 
 if __name__ == '__main__':
     asyncio.run(main())

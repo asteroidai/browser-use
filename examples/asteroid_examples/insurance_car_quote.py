@@ -105,39 +105,31 @@ Employed, car is in storage, never had an accident.
 # These are hardcoded for now
 
 # Define the agent's task
-prompt_template = """Get online car insurance quotes. The full details are: 
+prompt_template = """Your task is to obtain online car insurance quotes using the provided customer details:
 
 {customer_details}
 
-Input any other details based on your best judgement. Get me the quotes!
+Follow these steps to complete the task:
 
-Visit the car insurance comparison website: {website}
+1. Visit the specified car insurance comparison website: {website}.
+2. Navigate to the homepage or the car insurance quote section.
+3. Fill out the required form fields using the provided data.
+4. Submit the form and wait for the quotes page to load.
+5. Extract all necessary details from the resulting quotes page, with a focus on the costs.
 
-Navigate to the homepage or the car insurance quote section.
+Important Notes:
+- Concentrate solely on the given website; do not search for other insurance providers.
+- If prompted for a VIN, remember it is optional. Skip it if necessary, possibly by clicking 'next'.
+- If you encounter errors while entering text into the personal information section, such as "Failed to input text into element when inputting text," use the computer use tool instead of retrying the input_text tool.
 
-Fill out the required form fields with the provided test data.
-
-Submit the form and wait for the quotes page to load.
-
-Scrape the following details from the resulting quotes page:
-
-Insurance provider name
-Monthly or annual premium cost
-Coverage details (if available)
-Additional fees or special offers
-Return the data in the following format in this or similar format:
-
-"website": "{website}",
-"provider": "Geico",
-"monthly_premium": "$78",
-"annual_premium": "$936",
-"coverage": "State minimum",
-"additional_info": "Roadside assistance included"
-
-Once you have this data, use the done tool to output all of the final data!
+After gathering all the required data, use the done tool to output the final results.
 """
 
 PARALLELISED = True
+
+SCREENSHOT_WIDTH = 1280
+SCREENSHOT_HEIGHT = 800
+# These are the dimensions best supported by Anthropic computer use
 
 async def run_agent_for_website(website, folder_name):
     # Replace the browser initialization with the new function
@@ -148,14 +140,16 @@ async def run_agent_for_website(website, folder_name):
     
     folder_name = f"{folder_name}_{website_name}"
     
-    browser, debug_url, session_id = init_browser(
+    browser, debug_url, session_id = await init_browser(
         browserbase_project_id=BROWSERBASE_PROJECT_ID,
-        folder_name=folder_name
+        folder_name=folder_name,
+        width=SCREENSHOT_WIDTH,
+        height=SCREENSHOT_HEIGHT
     )
     controller = Controller()
 
     # Register computer_use action from the computer_use module
-    register_computer_use_action(controller)
+    register_computer_use_action(controller, width=SCREENSHOT_WIDTH, height=SCREENSHOT_HEIGHT)
 
     
     # Create a new run for each website
@@ -216,13 +210,27 @@ async def run_agent_for_website(website, folder_name):
         logger.error(f"Error updating run metadata: {e}")
 
     browser.message_manager = agent.message_manager
+    browser.llm = llm
+    
     await agent.run(max_steps=220)
-    await finalize_task(agent, task_name, str(run_id), folder_name=folder_name)
+    await finalize_task(agent, task_name, str(run_id), folder_name=folder_name, evaluate=False)
     await browser.close()
 
 INSURANCE_WEBSITES = [
-    "https://www.geico.com/auto-insurance/",
-    "https://www.progressive.com/auto/",
+   
+    # "https://www.statefarm.com/", # This get stuck on adding the vehicle
+    # "https://www.allstate.com/", # Escalates to a human
+    # "https://www.libertymutual.com/",
+    "https://www.progressivecommercial.com/",
+    # "https://www.travelers.com/car-insurance",
+    
+
+
+    # "https://www.directauto.com/",
+    # "https://www.thezebra.com/insurance/car/zipentry/?insuranceline=auto"
+    
+    # "https://www.geico.com/auto-insurance/",
+    # "https://www.progressive.com/auto/",
     
     # "https://insurify.com/",
     # "https://insurify.com/",
@@ -239,7 +247,7 @@ INSURANCE_WEBSITES = [
     # "https://www.nerdwallet.com",
 ]
 
-FOLDER_NAME = "insurance_car_quote"
+FOLDER_NAME = "agent_executions/insurance_car_quote"
 
 async def main():
     if PARALLELISED:

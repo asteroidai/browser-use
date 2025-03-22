@@ -27,14 +27,16 @@ from asteroid_sdk.wrappers.openai import asteroid_openai_client
 from browser_use.asteroid_browser_use.evaluation import finalize_task
 from browser_use.asteroid_browser_use.computer_use import register_computer_use_action
 from browser_use.asteroid_browser_use.actions import register_asteroid_actions
+from browser_use.asteroid_browser_use.utils import init_browser
 
 # Initialize logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 
-
+BROWSER_WINDOW_SIZE = {"width": 1024, "height": 768}
 TASK_NAME = "parcel_zoning_info"
+
 # TASK_NAME = "parcel_zoning_layers"
 
 # Initialize the project
@@ -98,26 +100,10 @@ time_str = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
 folder_name = f"agent_executions/{TASK_NAME}/recording_{TASK_NAME.replace(' ', '_')}_{time_str}_{run_id}"
 os.makedirs(folder_name, exist_ok=True)
 
-
-# Initialize the browser
-browser = Browser(
-    config=BrowserConfig(
-        headless=False,
-        new_context_config=BrowserContextConfig(
-            apply_click_styling=True,
-            apply_form_related=True,
-            browser_window_size={"width": 1024, "height": 768}, # These are values for Anthropic computer use
-            save_recording_path=folder_name
-        ),
-    )
-)
-controller = Controller()
-
-# Register computer_use action from the computer_use module
-register_computer_use_action(controller)
-
-# Register Asteroid actions
-register_asteroid_actions(controller, str(run_id), folder_name)
+# BROWSERBASE LOGIC
+BROWSERBASE_PROJECT_ID = "a8994b49-d8d5-4502-8f54-214d80089b6c"
+BROWSERBASE_API_KEY = os.environ.get("BROWSERBASE_API_KEY")
+USE_BROWSERBASE = False  # Set this to False if you want to run locally
 
 # Initialize the LLM
 llm = ChatOpenAI(
@@ -139,12 +125,13 @@ Here are some specific instructions that are relevant to this particular governm
 - Click in the search bar
 - Search using the address given 
 - Will present with two options, address points or parcels. Click on parcels.
-- Maximize the pop-up window by clicking the maximize button on the top right corner. Use the computer use action to achieve this.
-- After maximizing the pop-up window, extract all the data from it. This may require multiple steps:
-    - Take a screenshot of the pop-up window.
-    - Use the write_to_file function append the text parcel data from the pop-up window to a file.
-    - Scroll down to capture all the data. Take additional screenshots and save the new data to the file until all data is captured.
-- Close the pop-up window by clicking the close button on the top right corner. Use the computer use action to achieve this.
+- Maximize the pop-up window by clicking the maximize button on the top right corner. Make sure to click on the maximize button NOT the close button!!!! Use the computer use action to achieve this!!!
+- After maximizing the pop-up window, extract all the data from it. This may require multiple steps, but use separate steps for each action:
+    1. Take a screenshot of the pop-up window.
+    2. Use the write_to_file function append the text parcel data from the pop-up window to a file.
+    3. Scroll down! Always!!! This is extremely important so you don't miss any data! Repeat the the steps (1, 2, 3) above until all parcel information from the pop-up window is captured!
+
+- After you have captured all the data from the pop-up window, close the pop-up window by clicking the close button on the top right corner. Use the computer use action to achieve this.
 - Zoom out to view the entire parcel by sending the keys `Control` + `-`.
 - Take a screenshot of the full parcel.
 
@@ -197,21 +184,32 @@ Address: 6402 Marigold St
 Coordinates:  32.467141, -99.810052
 """
 
+async def main():
+    browser, session_id = await init_browser(browserbase_project_id=BROWSERBASE_PROJECT_ID)
+    
+    
+    controller = Controller()
 
-agent = Agent(
-    task=prompt_parcel_zoning_info,
-    llm=llm,
-    controller=controller,
-    browser=browser,
+    # Register computer_use action from the computer_use module
+    register_computer_use_action(controller)
+
+    # Register Asteroid actions
+    register_asteroid_actions(controller, str(run_id), folder_name)
+    
+    
+    agent = Agent(
+        task=prompt_parcel_zoning_info,
+        llm=llm,
+        controller=controller,
+        browser=browser,
 )
 
-# Important, this is needed so the computer use action can access the message manager
-browser.message_manager = agent.message_manager
-browser.llm = llm
-
-async def main():
-    await agent.run(max_steps=30)
-    await finalize_task(agent, TASK_NAME, str(run_id), folder_name)
+    # Important, this is needed so the computer use action can access the message manager
+    browser.message_manager = agent.message_manager
+    browser.llm = llm
+        
+    await agent.run(max_steps=60)
+    await finalize_task(agent, TASK_NAME, str(run_id), folder_name, evaluate=True, session_id=session_id, output_format="gif", browser_size=BROWSER_WINDOW_SIZE)
     await browser.close()
 
 if __name__ == '__main__':
